@@ -310,6 +310,11 @@ void monitor(char *bssid, int passive, int source, int channel, int mode)
 	static int header_printed;
         const u_char *packet = NULL;
 
+	struct sigevent sev;
+	struct itimerspec its;
+	sigset_t mask;
+	timer_t timerid;
+
         memset(&act, 0, sizeof(struct sigaction));
         memset(&timer, 0, sizeof(struct itimerval));
 
@@ -327,9 +332,29 @@ void monitor(char *bssid, int passive, int source, int channel, int mode)
 		}
 		else
 		{
+#ifndef NO_UALARM
         		act.sa_handler = sigalrm_handler;
         		sigaction (SIGALRM, &act, 0);
 			ualarm(CHANNEL_INTERVAL, CHANNEL_INTERVAL);
+#else
+        		// Define sigaction: handler
+        		act.sa_flags = SA_SIGINFO;
+        		act.sa_sigaction = channel_timer_handler;
+        		sigemptyset(&act.sa_mask);
+        		sigaction(SIGUSR1, &act, NULL);
+
+        		// Define sigevent
+        		sev.sigev_notify = SIGEV_SIGNAL;
+        		sev.sigev_signo = SIGUSR1;
+
+        		// Create the timer
+        		timer_create(CLOCK_REALTIME, &sev, &timerid);
+        		its.it_value.tv_sec = 1;
+        		its.it_value.tv_nsec = 0;
+        		its.it_interval.tv_sec = its.it_value.tv_sec;
+        		its.it_interval.tv_nsec = its.it_value.tv_nsec;
+        		timer_settime(timerid, 0, &its, NULL);
+#endif
 			int startchan = 1;
 			if(get_wifi_band() == AN_BAND)
 				startchan = 34;
@@ -359,7 +384,7 @@ void monitor(char *bssid, int passive, int source, int channel, int mode)
 	}
 
 	while(!got_sigint && (packet = next_packet(&header))) {
-		parse_wps_settings(packet, &header, bssid, passive, mode, source);
+		parse_wps_settings(packet, &header, bssid, passive, mode, source, &timerid);
 		memset((void *) packet, 0, header.len);
 	}
 
@@ -373,7 +398,7 @@ void monitor(char *bssid, int passive, int source, int channel, int mode)
    fixed parameters of size 12 */
 #define PROBE_RESP_SIZE(rth_len) BEACON_SIZE(rth_len)
 
-void parse_wps_settings(const u_char *packet, struct pcap_pkthdr *header, char *target, int passive, int mode, int source)
+void parse_wps_settings(const u_char *packet, struct pcap_pkthdr *header, char *target, int passive, int mode, int source, timer_t *timerid)
 {
 	struct libwps_data *wps = NULL;
 	enum encryption_type encryption = NONE;
@@ -430,7 +455,11 @@ void parse_wps_settings(const u_char *packet, struct pcap_pkthdr *header, char *
 
 			if(target != NULL && channel_changed == 0)
 			{
+#ifndef NO_UALARM
 				ualarm(0, 0);
+#else
+				timer_delete(*timerid);
+#endif
 				change_channel(channel);
 				channel_changed = 1;
 			}
@@ -551,6 +580,11 @@ void send_probe_request(unsigned char *bssid, char *essid)
 void sigalrm_handler(int x)
 {
 	next_channel();
+}
+
+static void channel_timer_handler(int sig, siginfo_t *si, void *uc)
+{
+        next_channel();
 }
 
 static void print_header(void) {
