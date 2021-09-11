@@ -4,11 +4,17 @@ LOCAL_PATH:= $(call my-dir)
 MY_CFLAGS	:= -g -Wall -W -O3 -Wno-unused-but-set-variable -Wno-array-bounds -DANDROID
 MY_C_INCLUDES	:= $(LOCAL_PATH)/common $(LOCAL_PATH)/crypto $(LOCAL_PATH)/libwps $(LOCAL_PATH)/lwe $(LOCAL_PATH)/tls $(LOCAL_PATH)/utils
 
-MY_SHARED_LIBS	:= libsqlite
-MY_C_INCLUDES	+= external/sqlite/dist
+include $(CLEAR_VARS)
+LOCAL_MODULE := libsqlite
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../libsqlite/local/$(TARGET_ARCH_ABI)/libsqlite.a
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/../libsqlite
+include $(PREBUILT_STATIC_LIBRARY)
 
-MY_STATIC_LIBS	:= libpcap
-MY_C_INCLUDES	+= external/libpcap
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpcap
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../libpcap/local/$(TARGET_ARCH_ABI)/libpcap.a
+LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/../libpcap
+include $(PREBUILT_STATIC_LIBRARY)
 
 # DEPENDENCY: libwps
 SRC_LIBWPS	:= libwps/libwps.c
@@ -61,8 +67,7 @@ LOCAL_MODULE		:= libiwlib
 LOCAL_SRC_FILES		:= $(SRC_LWE)
 LOCAL_CFLAGS		+= $(MY_CFLAGS)
 LOCAL_C_INCLUDES	:= $(MY_C_INCLUDES)
-LOCAL_STATIC_LIBRARIES  := $(MY_STATIC_LIBS)
-LOCAL_SHARED_LIBRARIES  := $(MY_SHARED_LIBS)
+LOCAL_STATIC_LIBRARIES  := libsqlite libpcap
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -70,8 +75,7 @@ LOCAL_MODULE		:= reaver
 LOCAL_SRC_FILES		:= $(SRC_REAVER) utils/vendor.c
 LOCAL_CFLAGS		+= $(MY_CFLAGS) -DNO_UALARM
 LOCAL_C_INCLUDES	:= $(MY_C_INCLUDES)
-LOCAL_STATIC_LIBRARIES  := $(MY_STATIC_LIBS) libiwlib liblog
-LOCAL_SHARED_LIBRARIES  := $(MY_SHARED_LIBS)
+LOCAL_STATIC_LIBRARIES  := libsqlite libpcap libiwlib liblog
 LOCAL_LDLIBS		:= -llog
 include $(BUILD_EXECUTABLE)
 
@@ -83,7 +87,6 @@ include $(BUILD_EXECUTABLE)
 # LOCAL_SRC_FILES		:= $(SRC_REAVER) utils/vendor.c
 # LOCAL_CFLAGS		+= $(MY_CFLAGS) -DNO_UALARM
 # LOCAL_C_INCLUDES	:= $(MY_C_INCLUDES)
-# LOCAL_STATIC_LIBRARIES  := $(MY_STATIC_LIBS) libiwlib liblog
-# LOCAL_SHARED_LIBRARIES  := $(MY_SHARED_LIBS)
+# LOCAL_STATIC_LIBRARIES  := libsqlite libpcap libiwlib liblog
 # LOCAL_LDLIBS		:= -llog
 # include $(BUILD_EXECUTABLE)
